@@ -1,0 +1,28 @@
+{
+  "name": "github-contributions-api",
+  "version": "1.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oviirup/github-contributions-api"
+  },
+  "author": {
+    "name": "Avirup Ghosh (oviirup)",
+    "url": "https://github.com/oviirup"
+  },
+  "scripts": {
+    "format": "biome format --write",
+    "lint": "biome lint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hono": "^4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2",
+    "husky": "^9",
+    "lint-staged": "^16",
+    "typescript": "^5",
+    "vitest": "^4"
+  }
+}

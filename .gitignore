@@ -1,0 +1,17 @@
+# repository
+node_modules
+dist
+
+# temporary files
+*.temp.*
+*.bkp
+*.tgz
+
+# environment variables
+!.env.example
+.env
+.env.*
+
+# debug
+*-debug.log*
+*-error.log*
