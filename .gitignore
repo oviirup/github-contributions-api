@@ -1,6 +1,8 @@
 # repository
 node_modules
 dist
+.wrangler
+.idea
 
 # temporary files
 *.temp.*
