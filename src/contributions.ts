@@ -1,47 +1,51 @@
 import { z } from "zod";
-import { HonoContext } from "./type";
+import { HonoContext, Options } from "./type";
 
 const zQueryParams = z.object({
-  from: z.iso.date("'from' is not a valid date (YYYY-MM-DD)").optional(),
-  to: z.iso.date("'from' is not a valid date (YYYY-MM-DD)").optional(),
-  durationInDays: z.coerce
-    .number("'durationInDays' must be an integer")
-    .int("'durationInDays' must be an integer")
-    .min(1, "'durationInDays' must be greater than 1")
+  from: z.iso
+    .date("'from' must be in valid iso date format (YYYY-MM-DD)")
     .optional(),
-  durationInWeeks: z.coerce
-    .number("'durationInWeeks' must be an integer")
-    .int("'durationInWeeks' must be an integer")
-    .min(1, "'durationInWeeks' must be greater than 1")
+  to: z.iso
+    .date("'to' must be in valid iso date format (YYYY-MM-DD)")
     .optional(),
-  durationInMonths: z.coerce
-    .number("'durationInMonths' must be an integer")
-    .int("'durationInMonths' must be an integer")
-    .min(1, "'durationInMonths' must be greater than 1")
+  d: z.coerce
+    .number("'d' (days) must be an integer")
+    .int("'d' (days) must be an integer")
+    .min(1, "'d' (days) must be greater than 1")
+    .optional(),
+  w: z.coerce
+    .number("'w' (weeks) must be an integer")
+    .int("'w' (weeks) must be an integer")
+    .min(1, "'w' (weeks) must be greater than 1")
+    .optional(),
+  m: z.coerce
+    .number("'m' (months) must be an integer")
+    .int("'m' (months) must be an integer")
+    .min(1, "'m' (months) must be greater than 1")
+    .optional(),
+  y: z.coerce
+    .number("'y' (year) must be an integer")
+    .int("'y' (year) must be an integer")
+    .min(1, "'y' (year) must be greater than 1")
+    .default(1)
     .optional(),
 });
 
-const chromeUserAgent = `Mozilla/5.0 (Windows Server 2012 R2 Standard; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5975.80 Safari/537.36`;
-
-type QueryParams = z.output<typeof zQueryParams>;
-type Options = QueryParams & { username: string; accessToken: string };
-
 export async function getContributionsRoute(c: HonoContext) {
   const url = new URL(c.req.url);
-  const username = c.req.param("username");
   const params = Object.fromEntries(url.searchParams);
-  const accessToken = c.env.GITHUB_TOKEN;
-
   // validate query params, return invalid on error
-  const parsed = zQueryParams.safeParse({ username, ...params });
+  const parsed = zQueryParams.safeParse(params);
   if (!parsed.success) {
     const message = parsed.error.issues[0].message;
     return c.json({ error: "Invalid options", message }, 400);
   }
-
+  // get fetch, parse, and organize contributions
   try {
-    const options: Options = { username, accessToken, ...parsed.data };
-    const result = await getContributions(options);
+    const username = c.req.param("username");
+    const token = c.env.GITHUB_TOKEN;
+    const dates = resolveDates(parsed.data);
+    const result = await getContributions({ username, token, ...dates });
     return c.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -49,12 +53,11 @@ export async function getContributionsRoute(c: HonoContext) {
   }
 }
 
-async function getContributions({ username, accessToken, ...opts }: Options) {
-  const { fromDate, toDate } = resolveDuration(opts);
-
+async function getContributions({ username, token, to, from }: Options) {
+  const variables = { username, from, to };
   const query = `
-  query($userName:String!, $from: DateTime, $to: DateTime ) {
-    user(login: $userName){
+  query($username:String!, $from: DateTime, $to: DateTime ) {
+    user(login: $username){
       contributionsCollection(from: $from, to: $to) {
         contributionCalendar {
           total: totalContributions
@@ -63,43 +66,30 @@ async function getContributions({ username, accessToken, ...opts }: Options) {
       }
     }
   }`;
-
-  const variables = {
-    userName: username,
-    from: fromDate,
-    to: toDate,
-  };
-
   try {
     const res = await fetch("https://api.github.com/graphql", {
       method: "POST",
       headers: {
-        "User-Agent": chromeUserAgent,
+        "User-Agent": "Chrome/118.0.5975.80 Safari/537.36",
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ query, variables }),
     });
-    const json = await res.json();
-    return json;
-  } catch (err) {
-    console.error(err);
+    const json: any = await res.json();
+    return json.data.user.contributionsCollection.contributionCalendar;
+  } catch {
     throw new Error("Failed to fetch contributions data from GitHub");
   }
 }
 
-function resolveDuration(opts: QueryParams) {
-  const toDate = opts.to ? new Date(opts.to) : new Date();
-  const fromDate = opts.from ? new Date(opts.from) : new Date(toDate);
-  // Default to 12 months
-  opts.durationInMonths ??= 12;
+function resolveDates(opts: z.output<typeof zQueryParams>) {
+  const to = opts.to ? new Date(opts.to) : new Date();
+  const from = opts.from ? new Date(opts.from) : new Date(to);
   // Calculate fromDate based on duration by priority
-  if (opts.durationInDays) {
-    fromDate.setDate(fromDate.getDate() - opts.durationInDays);
-  } else if (opts.durationInWeeks) {
-    fromDate.setDate(fromDate.getDate() - opts.durationInWeeks * 7);
-  } else if (opts.durationInMonths) {
-    fromDate.setMonth(fromDate.getMonth() - opts.durationInMonths);
-  }
-  return { fromDate, toDate };
+  if (opts.d) from.setDate(from.getDate() - opts.d);
+  else if (opts.w) from.setDate(from.getDate() - opts.w * 7);
+  else if (opts.m) from.setMonth(from.getMonth() - opts.m);
+  else if (opts.y) from.setMonth(from.getMonth() - opts.y * 12);
+  return { to, from };
 }
