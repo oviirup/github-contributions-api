@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HonoContext, Options } from "./type";
+import { Contributions, HonoContext, Options, QueryResponse } from "./type";
 
 const zQueryParams = z.object({
   from: z.iso
@@ -45,8 +45,15 @@ export async function getContributionsRoute(c: HonoContext) {
     const username = c.req.param("username");
     const token = c.env.GITHUB_TOKEN;
     const dates = resolveDates(parsed.data);
-    const result = await getContributions({ username, token, ...dates });
-    return c.json(result);
+    const calendar = await getContributions({ username, token, ...dates });
+    const activities = mapContributions(calendar);
+    const data: Contributions.Data = {
+      to: toIsoDate(dates.to),
+      from: toIsoDate(dates.from),
+      activities,
+      total: calendar.total,
+    };
+    return c.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return c.json({ error: "Server error", message }, 500);
@@ -76,11 +83,36 @@ async function getContributions({ username, token, to, from }: Options) {
       },
       body: JSON.stringify({ query, variables }),
     });
-    const json: any = await res.json();
+    const json = (await res.json()) as QueryResponse.Data;
     return json.data.user.contributionsCollection.contributionCalendar;
   } catch {
     throw new Error("Failed to fetch contributions data from GitHub");
   }
+}
+
+function mapContributions(calendar: QueryResponse.Calendar) {
+  const activities: Contributions.Activity[] = [];
+  for (const week of calendar.weeks) {
+    for (const act of week.days) {
+      if (act.count === 0) continue;
+      activities.push({
+        count: act.count,
+        date: act.date,
+        level: mapActivityLevel(act.contributionLevel),
+      });
+    }
+  }
+  return activities;
+}
+
+function mapActivityLevel(level: string): number {
+  // biome-ignore format: keep the entries as is, do not sort them
+  const map = ["NONE","FIRST_QUARTILE","SECOND_QUARTILE","THIRD_QUARTILE","FOURTH_QUARTILE"];
+  return map.includes(level) ? map.indexOf(level) : 0;
+}
+
+function toIsoDate(date: Date) {
+  return date.toISOString().slice(0, 10);
 }
 
 function resolveDates(opts: z.output<typeof zQueryParams>) {
