@@ -1,0 +1,5 @@
+pre-commit:
+  jobs:
+    - name: lint staged files
+      run: biome check --write {staged_files}
+      glob: "**/*.{js,mjs,cjs,jsx,ts,tsx,json,jsonc,css}"
