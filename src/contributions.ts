@@ -29,6 +29,10 @@ const zQueryParams = z.object({
     .min(1, "'y' (year) must be greater than 1")
     .default(1)
     .optional(),
+  format: z
+    .enum(["json", "csv"], "'format' must be 'json' or 'csv'")
+    .default("json")
+    .optional(),
 });
 
 export async function getContributionsRoute(c: HonoContext) {
@@ -47,11 +51,20 @@ export async function getContributionsRoute(c: HonoContext) {
     const dates = resolveDates(parsed.data);
     const calendar = await getContributions({ username, token, ...dates });
     const activities = mapContributions(calendar);
+    const format = parsed.data.format ?? "json";
+
+    // if format is csv, return csv
+    if (format === "csv") {
+      const csv = toCsv(activities);
+      return c.text(csv, 200, { "Content-Type": "text/csv;charset=utf-8" });
+    }
+
+    // return json by default
     const data: Contributions.Data = {
       to: toIsoDate(dates.to),
       from: toIsoDate(dates.from),
-      activities,
       total: calendar.total,
+      activities,
     };
     return c.json(data);
   } catch (err) {
@@ -113,6 +126,12 @@ function mapActivityLevel(level: string): number {
 
 function toIsoDate(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function toCsv(activities: Contributions.Activity[]): string {
+  const header = "date,count,level";
+  const rows = activities.map((a) => `${a.date},${a.count},${a.level}`);
+  return [header, ...rows].join("\n");
 }
 
 function resolveDates(opts: z.output<typeof zQueryParams>) {
