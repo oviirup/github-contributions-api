@@ -107,7 +107,6 @@ function mapContributions(calendar: QueryResponse.Calendar) {
   const activities: Contributions.Activity[] = [];
   for (const week of calendar.weeks) {
     for (const act of week.days) {
-      if (act.count === 0) continue;
       activities.push({
         count: act.count,
         date: act.date,
@@ -142,5 +141,8 @@ function resolveDates(opts: z.output<typeof zQueryParams>) {
   else if (opts.w) from.setDate(from.getDate() - opts.w * 7);
   else if (opts.m) from.setMonth(from.getMonth() - opts.m);
   else if (opts.y) from.setMonth(from.getMonth() - opts.y * 12);
+  // Adjust `from` date to be the previous Sunday (or keep if already Sunday)
+  const fromDayIndex = from.getDay();
+  if (fromDayIndex !== 0) from.setDate(from.getDate() - fromDayIndex);
   return { to, from };
 }

@@ -17,8 +17,8 @@ app.get("/", (c) => {
 });
 
 const cacheConfig: Parameters<typeof cache>[0] = {
-  cacheName: (c) => `cache::${c.req.path}`,
-  cacheControl: "public, max-age=3600, stale-while-revalidate=600",
+  cacheName: "cache::contributions",
+  cacheControl: "max-age=3600",
 };
 
 app.get("/:username", cache(cacheConfig), getContributionsRoute);

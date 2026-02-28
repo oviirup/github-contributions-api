@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "github-contributions-api",
+  "name": "ghcontributions",
   "main": "src/server.ts",
   "compatibility_date": "2026-01-04"
 }
