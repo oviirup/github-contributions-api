@@ -1,26 +1,19 @@
 {
   "name": "github-contributions-api",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/oviirup/github-contributions-api"
-  },
-  "author": {
-    "name": "Avirup Ghosh (oviirup)",
-    "url": "https://github.com/oviirup"
-  },
+  "repository": "https://github.com/oviirup/github-contributions-api",
+  "author": "Avirup Ghosh (oviirup)",
   "scripts": {
-    "prepare": "lefthook install",
-    "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
+    "dev": "wrangler dev",
     "format": "biome format --write",
     "lint": "biome check",
-    "test": "vitest run"
+    "prepare": "lefthook install"
   },
   "dependencies": {
-    "hono": "^4.12.2",
+    "hono": "^4.12.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -28,7 +21,6 @@
     "@types/bun": "^1.3.9",
     "lefthook": "^2.1.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
-    "wrangler": "^4.67.1"
+    "wrangler": "^4.69.0"
   }
 }
